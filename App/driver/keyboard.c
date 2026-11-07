@@ -131,6 +131,60 @@ bool KEYBOARD_ProcessProtocolByte(ParseState_t *state, uint8_t b)
 
     return connected;
 }
+
+#ifdef ENABLE_SAT_CAT
+// The K5Viewer parsers read the same RX ring as the command parser, ahead of
+// it, so they see every byte of a framed command. Its obfuscated payload can
+// hold AA 55 03 kk (a key press: Side1 plays CW macros in the CW build) or
+// 55 AA 00 00 (viewer keepalive). Frame markers and length are sent in the
+// clear, so pass over each frame by its length. True when b belongs to one.
+bool KEYBOARD_SkipCommandFrame(CommandFrameSkip_t *skip, uint8_t b)
+{
+    switch (skip->phase)
+    {
+        case 1: // after AB
+            if (b == 0xCD) {
+                skip->phase = 2;
+                return true;
+            }
+            skip->phase = 0;
+            break;  // not a frame after all: b is an ordinary byte
+
+        case 2: // length, low byte
+            skip->len_lo = b;
+            skip->phase  = 3;
+            return true;
+
+        case 3: // length, high byte
+        {
+            const uint16_t len = skip->len_lo | ((uint16_t)b << 8);
+            // longer than any frame a 256-byte RX ring can hold: not a frame
+            if (len > 248u) {
+                skip->phase = 0;
+                return true;
+            }
+            skip->remaining = len + 4u;  // payload, CRC, DC BA
+            skip->phase     = 4;
+            return true;
+        }
+
+        case 4:
+            if (--skip->remaining == 0)
+                skip->phase = 0;
+            return true;
+
+        default:
+            break;
+    }
+
+    if (b == 0xAB) {
+        skip->phase = 1;
+        return true;
+    }
+
+    return false;
+}
+#endif
 #endif
 
 #define GPIOx               GPIOB

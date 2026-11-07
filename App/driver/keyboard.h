@@ -78,6 +78,17 @@ extern volatile uint8_t    gSerialViewerFeatures;
 #endif
 
 bool KEYBOARD_ProcessProtocolByte(ParseState_t *state, uint8_t b);
+
+#ifdef ENABLE_SAT_CAT
+// Where a K5Viewer parser is in a framed serial command (AB CD len ... DC BA)
+typedef struct {
+    uint8_t  phase;
+    uint8_t  len_lo;
+    uint16_t remaining;
+} CommandFrameSkip_t;
+
+bool KEYBOARD_SkipCommandFrame(CommandFrameSkip_t *skip, uint8_t b);
+#endif
 #endif
 
 KEY_Code_t KEYBOARD_Poll(void);

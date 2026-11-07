@@ -184,6 +184,9 @@ void UART_LogSend(const void *pBuffer, uint32_t Size)
     bool UART_IsCableConnected(void) {
         static uint8_t     read_ptr = 0;
         static ParseState_t state   = STATE_IDLE;
+#ifdef ENABLE_SAT_CAT
+        static CommandFrameSkip_t frame;
+#endif
 
         bool connected = false;
 
@@ -197,6 +200,11 @@ void UART_LogSend(const void *pBuffer, uint32_t Size)
             uint8_t b = UART_DMA_Buffer[read_ptr++];
             // read_ptr wraps naturally at 256 since it's uint8_t
             processed++;
+
+#ifdef ENABLE_SAT_CAT
+            if (KEYBOARD_SkipCommandFrame(&frame, b))
+                continue;  // inside a framed command, not K5Viewer traffic
+#endif
 
             if(KEYBOARD_ProcessProtocolByte(&state, b))
                 connected = true;

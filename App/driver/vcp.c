@@ -45,6 +45,9 @@ void VCP_Init()
 #ifdef ENABLE_FEAT_F4HWN_K5VIEWER
 static uint8_t      k5v_read_ptr = 0;
 static ParseState_t k5v_state    = STATE_IDLE;
+#ifdef ENABLE_SAT_CAT
+static CommandFrameSkip_t k5v_frame;
+#endif
 
 /* Skip what arrived while an overlay app owned the port (its serial data is
  * no K5Viewer traffic) and restart the parser from a clean state. */
@@ -52,6 +55,9 @@ void VCP_K5ViewerSync(void)
 {
     k5v_read_ptr = (uint8_t)VCP_RxBufPointer;
     k5v_state    = STATE_IDLE;
+#ifdef ENABLE_SAT_CAT
+    k5v_frame.phase = 0;
+#endif
 }
 
 bool VCP_K5ViewerPing(void)
@@ -97,6 +103,11 @@ bool VCP_K5ViewerPing(void)
         if (read_ptr >= VCP_RX_BUF_SIZE)
             read_ptr = 0;
         processed++;
+
+#ifdef ENABLE_SAT_CAT
+        if (KEYBOARD_SkipCommandFrame(&k5v_frame, b))
+            continue;  // inside a framed command, not K5Viewer traffic
+#endif
 
         if(KEYBOARD_ProcessProtocolByte(&k5v_state, b))
             connected = true;
