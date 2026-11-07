@@ -56,6 +56,7 @@
                 "ENABLE_BYP_RAW_DEMODULATORS": false,
                 "ENABLE_SCAN_RANGES": true,
                 "ENABLE_EXTRA_UART_CMD": false,
+                "ENABLE_SAT_CAT": false,
                 "ENABLE_FEAT_F4HWN": true,
                 "ENABLE_FEAT_F4HWN_FULL_WATCH": false,
                 "ENABLE_FEAT_F4HWN_GAME": false,

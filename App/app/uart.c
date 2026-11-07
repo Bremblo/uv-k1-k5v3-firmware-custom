@@ -63,6 +63,10 @@
     #include "sram-overlay.h"
 #endif
 
+#ifdef ENABLE_SAT_CAT
+    #include "app/satcat.h"
+#endif
+
 #define UNUSED(x) (void)(x)
 
 #define DMA_INDEX(x, y, z) (((x) + (y)) % (z))
@@ -207,6 +211,12 @@ typedef union
 
 // static bool     bIsEncrypted = true;
 #define bIsEncrypted true
+
+#ifdef ENABLE_SAT_CAT
+// Set while UART_ServiceCommands() runs: only modal loops (app menu, spectrum,
+// games) call it, and SAT_SET_FREQ must not retune behind their back.
+static bool bServiceFromModal;
+#endif
 
 #ifdef ENABLE_USB
 static void SendReply_VCP(void *pReply, uint16_t Size)
@@ -1391,6 +1401,37 @@ void UART_HandleCommand(uint32_t Port)
         }
 #endif
 
+#ifdef ENABLE_SAT_CAT
+        // ---- satellite Doppler control (app/satcat.c), RAM only -----------
+        // No session timestamp and no serial-config countdown: 0x0514 would
+        // block TX for 6 s, and these run several times a second for a pass.
+        case 0x0560: // SAT_SET_FREQ
+        {
+            struct __attribute__((packed)) {
+                Header_t              Header;
+                SATCAT_SetFreqReply_t Data;
+            } Reply;
+            Reply.Header.ID   = 0x0561;
+            Reply.Header.Size = sizeof(Reply.Data);
+            SATCAT_SetFreq(pUART_Command->Data, pUART_Command->Header.Size, &Reply.Data, bServiceFromModal);
+            SendReply(Port, &Reply, sizeof(Reply));
+            break;
+        }
+
+        case 0x0562: // SAT_GET_STATUS
+        {
+            struct __attribute__((packed)) {
+                Header_t             Header;
+                SATCAT_StatusReply_t Data;
+            } Reply;
+            Reply.Header.ID   = 0x0563;
+            Reply.Header.Size = sizeof(Reply.Data);
+            SATCAT_GetStatus(pUART_Command->Header.Size >= 1u ? pUART_Command->Data[0] : 0, &Reply.Data);
+            SendReply(Port, &Reply, sizeof(Reply));
+            break;
+        }
+#endif
+
 #ifdef ENABLE_UART_RW_BK_REGS
         case 0x0601:
             CMD_0601_ReadBK4819Reg(Port, pUART_Command->Buffer);
@@ -1426,6 +1467,10 @@ void UART_ResetRxParser(void)
 
 void UART_ServiceCommands(void)
 {
+#ifdef ENABLE_SAT_CAT
+    bServiceFromModal = true;
+#endif
+
 #ifdef ENABLE_USB
     if (UART_IsCommandAvailable(UART_PORT_VCP))
         UART_HandleCommand(UART_PORT_VCP);
@@ -1434,5 +1479,9 @@ void UART_ServiceCommands(void)
 #ifdef ENABLE_UART
     if (UART_IsCommandAvailable(UART_PORT_UART))
         UART_HandleCommand(UART_PORT_UART);
+#endif
+
+#ifdef ENABLE_SAT_CAT
+    bServiceFromModal = false;
 #endif
 }

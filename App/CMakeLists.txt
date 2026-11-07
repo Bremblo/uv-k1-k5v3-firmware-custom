@@ -232,6 +232,15 @@ endif()
 # Thank you @reppad
 enable_feature(ENABLE_EXTRA_UART_CMD)
 
+# Satellite Doppler control over serial, RAM only (KF8CNK)
+enable_feature(ENABLE_SAT_CAT
+    app/satcat.c
+)
+
+if(ENABLE_SAT_CAT AND NOT (ENABLE_UART OR ENABLE_USB))
+    message(FATAL_ERROR "ENABLE_SAT_CAT requires ENABLE_UART or ENABLE_USB.")
+endif()
+
 # ---- F4HWN MODS ----
 
 if(NOT ENABLE_UART AND NOT ENABLE_USB)

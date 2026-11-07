@@ -40,6 +40,9 @@
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     #include "app/rxtx_log.h"
 #endif
+#ifdef ENABLE_SAT_CAT
+    #include "app/satcat.h"
+#endif
 #include "misc.h"
 #include "radio.h"
 #include "settings.h"
@@ -274,6 +277,13 @@ void FUNCTION_Select(FUNCTION_Type_t Function)
 #endif
 
     gCurrentFunction = Function;
+
+#ifdef ENABLE_SAT_CAT
+    // every way out of TX passes here (CW hang expiry, PTT release, timeout);
+    // apply a TX frequency the serial port latched while transmitting
+    if (PreviousFunction == FUNCTION_TRANSMIT && Function != FUNCTION_TRANSMIT)
+        SATCAT_OnTxEnd();
+#endif
 
 #ifdef ENABLE_FEAT_F4HWN_RXTX_LOG
     if (nextIsActive && !nextIsTx && (!previousWasActive || previousWasTx))
